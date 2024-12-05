@@ -1,7 +1,7 @@
 import telebot as tb
 import psycopg2
-from rating import rating
 from keyboard_f import keyboard_f
+from rating import get_ratings_ofone, get_ratings_all
 from config import TOKEN
 from output import output
 
@@ -11,6 +11,7 @@ conn = psycopg2.connect(database="postgres",
                         password="postgres",)
 cursor = conn.cursor()
 users = set()
+num = 0
 t_name = ""
 
 @bot.message_handler(commands=["start"])   ### Готов
@@ -18,7 +19,9 @@ def welcome(message) -> None:
     global users, stage
     stage = "START"   
     print(20*"#", stage, 20*"#") #
-    users.add((message.chat.first_name, message.chat.last_name, message.chat.username, message.chat.id, message.from_user.id, message.from_user.first_name, message.from_user.last_name, message.from_user.username))
+    users.add((message.chat.first_name, message.chat.last_name, message.chat.username,
+                message.chat.id, message.from_user.id, message.from_user.first_name,
+                message.from_user.last_name, message.from_user.username))
     with open("D:/Downloadse/UNI/BBNT/proj_sem_3/data_users.txt", mode="r+") as f:
         f.write(f"{users}\n")
     bot.send_message(message.chat.id,
@@ -93,7 +96,7 @@ def help(message) -> None:
                             "'/list Кафедра' для вывода всех преподавателей из этой кафедры.\n"
                             "'/chair' для вывода всех кафедр.\n"
                             "'/faculty' для вывода всех факультетов.\n"
-                            "'/look Имя' для вывода отзывов о данном преподе")
+                            "'/ratings' для вывода всех отзывов")
 
 @bot.message_handler(commands=['teacher'])   ### Готов (?)
 def choose(message) -> None:
@@ -119,32 +122,39 @@ def choose(message) -> None:
         if len(teacher) == 1:
             global t_name
             t_name = teacher[0][1]
-            bot.send_message(message.chat.id, text=output(lst=teacher[0][1:-2]), reply_markup=keyboard_f(tb, stage))
+            bot.send_message(message.chat.id, text=output(lst=teacher[0][1:-2], stage=stage), reply_markup=keyboard_f(tb, stage))
             bot.register_next_step_handler(message, handle_butt)
         print("     ", message.text) ##################################
 
-def handle_butt(message) -> None:  
+def handle_butt(message) -> None:   ### Готов (?)  
     global stage
     stage = "TEACHER_BUTTON"   
     print(20*"#", stage, 20*"#") #
     try:
-        if message.text == 'Написать отзыв':
+        if message.text == 'Написать отзыв':   ### Готов
             bot.send_message(message.chat.id, text='Введите отзыв как на примере:\n4.9 Лучший препод')
             bot.register_next_step_handler(message, handle_rate)
-        elif message.text == 'Посмотреть отзывы':
-            cursor.execute(f"SELECT * FROM ratings WHERE t_name = '{t_name}'")
+
+
+        elif message.text == 'Посмотреть отзывы':   ### Это говно ###
+            global num, t_name
+            num = 1
+            ratings = get_ratings_ofone(tb, cursor, t_name)
+            bot.send_message(message.chat.id, text=f"{t_name}")
             bot.send_message(message.chat.id, 
-                             text=f"Отзывы по преподавателю {t_name}", 
-                             reply_markup=keyboard_f(tb, stage="TEACHER_LOOK"))
-        elif message.text == 'Посмотреть статистику':
+                             text=output(num=num, ratings=ratings, stage=stage), 
+                             reply_markup=keyboard_f(tb, num=num, stage="TEACHER_LOOK"))
+            
+
+        elif message.text == 'Посмотреть статистику':   ### Готов
             cursor.execute(f"SELECT rate FROM ratings WHERE t_name = '{t_name}'")
             rates = list(cursor.fetchall())
             print(rates, *rates) ##################################
-            teach_rate = [float(i[j]) for i in rates for j in range(0, len(rates))]
+            teach_rate = [float(i[j]) for i in rates for j in range(0, len(rates)-1)]
             bot.send_message(message.chat.id, 
                              text=f"Статистика отзывов:\n\nПреподаватель: {t_name}\nКол-во отзывов: {len(teach_rate)}\nСредний показатель: {sum(teach_rate)/len(teach_rate)}", 
                              reply_markup=keyboard_f(tb, stage))
-        elif message.text == 'Выбрать заново':
+        elif message.text == 'Выбрать заново':   ### Готов
             bot.register_next_step_handler(message, choose)
         else:
             bot.reply_to(message, 'Вы ввели фигню: ' + message.text)
@@ -153,43 +163,44 @@ def handle_butt(message) -> None:
             print(f"Не удалось отправить сообщение пользователю {message.chat.id}: {e}")
             bot.send_message(message.chat.id, text=f'Произошла ошибка {e}', reply_markup=keyboard_f(tb, stage))
         
-def handle_rate(message) -> None:
+def handle_rate(message) -> None:   ### Готов (?)
     global stage, t_name
     stage = "TEACHER_RATE"
     print(20*"#", stage, 20*"#") #
-    rate = output(mssg=message.text)
+    rate = output(mssg=message.text, stage=stage)
     try:
         cursor.execute(f"INSERT INTO ratings(t_name, rate_txt, rate) VALUES('{t_name}', '{rate[1]}', {rate[0]});")
         conn.commit()
-        bot.send_message(message.chat.id, text=f"Ваш отзыв:\n{rate[1]}\nВаша оценка:\n {rate[0]}\n\nДля просмотра всех отзывов на препода введите команду '/look Имя'")
+        bot.send_message(message.chat.id, text=f"Ваш отзыв:\n{rate[1]}\nВаша оценка:\n {rate[0]}")
         stage = "TEACHER_CHOOSING4LOOK"
         bot.register_next_step_handler(message, choose)
     except TypeError or psycopg2.errors.SyntaxError:
         bot.send_message(message.chat.id, text=f'Введите отзыв как на примере:\n4.9 Лучший препод')
         bot.register_next_step_handler(message, handle_rate)
 
-"""
+
 @bot.callback_query_handler(func=lambda call: call.data == 'go_on')
 def save_btn(call):
-    message = call.message
-    chat_id = message.chat.id
-    message_id = message.message_id  
-    bot.edit_message_text(chat_id=chat_id, message_id=message_id, 
-                         text='Данные сохранены!')  
-
+    global num
+    num += 1
+    bot.edit_message_text(chat_id=call.message.chat.id, 
+                          message_id=call.message.message_id, 
+                          text=output(num=num, ratings=ratings, stage="TEACHER_BUTTON"))
 
 @bot.callback_query_handler(func=lambda call: call.data == 'go_back')
 def save_btn(call):
-    message = call.message
-    chat_id = message.chat.id
-    message_id = message.message_id  
-    bot.edit_message_text(chat_id=chat_id, message_id=message_id, 
-                         text='Изменение данных!')
-"""
+    global num
+    num -= 1
+    bot.edit_message_text(chat_id=call.message.chat.id, 
+                          message_id=call.message.message_id, 
+                          text='Изменение данных!')
+    
 
 @bot.message_handler(content_types=['text'])
 def echo(message):
-    bot.send_message(message.chat.id, text=f"Простите, бот не умеет понимать ничего, кроме команд.\nЧтобы просмотреть комнады введите '/help'")
+    bot.send_message(message.chat.id, 
+                     text=f"Простите, бот не умеет понимать ничего, кроме команд.\n"
+                           "Чтобы просмотреть комнады введите '/help'")
     print("      ", message.text)
 
 bot.polling(none_stop=True)
