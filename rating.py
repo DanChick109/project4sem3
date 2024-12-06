@@ -3,7 +3,7 @@ def get_ratings_ofone(tb, cursor, t_name: str) -> list:
     ratings = list(cursor.fetchall())
     return ratings
 
-def get_ratings_all(tb, cursor) -> list:
+def get_ratings_ofall(tb, cursor) -> list:
     cursor.execute(f"SELECT * FROM ratings")
     ratings = list(cursor.fetchall())
     return ratings
