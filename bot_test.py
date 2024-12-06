@@ -28,7 +28,7 @@ def welcome(message) -> None:
                            "Для вывода всех команд используйте команду '/help'.", 
                      reply_markup=keyboard_f(tb, stage="TEACHER_BUTTON"))
 
-@bot.message_handler(commands=['list'])   ### Готов
+@bot.message_handler(commands=['list'])   ### Готов НЕТ ###############################################################################
 def list_of_t(message) -> None:
     global stage
     stage = "LIST"   
@@ -73,6 +73,7 @@ def list_of_k(message) -> None:
         kafs = list(cursor.fetchall())
         for j in kafs:
             s_f += "    • " + j[0] + "\n"
+        s_f += "\n"
     bot.send_message(message.chat.id, f"Кафедры МТУСИ:\n\n{s_f}",
                      reply_markup=keyboard_f(tb, stage="TEACHER_BUTTON"))
 
@@ -140,7 +141,7 @@ def choose(message) -> None:
             s = ""  
             for i in teacher:
                 s += "  • " + i[1] + "\n    Кафедра: " + i[2] + '\n'
-            bot.send_message(message.chat.id, text=f"С таким именем есть несколько преподов:\n{s}\n\nНеобходимо уточнить запрос - напишите '/teacher Фамилия Имя')")
+            bot.send_message(message.chat.id, text=f"С таким именем есть несколько преподов:\n{s}\n\nНеобходимо уточнить запрос - напишите '/teacher' с ФИ или ИО)")
         if len(teacher) == 1:
             global t_name
             t_name = teacher[0][1]
@@ -176,12 +177,12 @@ def handle_butt(message) -> None:   ### Готов
             teach_rate = [float(i[0]) for i in rates]
             if teach_rate:
                 bot.send_message(message.chat.id, 
-                                text=f"Статистика отзывов:\n\nПреподаватель: {t_name}\nКол-во отзывов: {len(teach_rate)}\nСредний показатель: {sum(teach_rate)/len(teach_rate)}", 
+                                text=f"Статистика отзывов:\n\nПреподаватель: {t_name}\nКол-во отзывов: {len(teach_rate)}\nСредний показатель: {(sum(teach_rate)/len(teach_rate))//0.1/10}", 
                                 reply_markup=keyboard_f(tb, stage))
             else:
                 bot.send_message(message.chat.id, 
                                 text=f"У преподователя {t_name} еще нет отзывов\nВы можете стать первым!",
-                                reply_markup=keyboard_f(tb, num=num, stage=stage))
+                                reply_markup=keyboard_f(tb, num=num, stage="TEACHER_CHOOSING"))
                 bot.register_next_step_handler(message, handle_butt)
         elif message.text == 'Убрать клавиатуру':   ### Готов
             bot.send_message(message.chat.id, 
