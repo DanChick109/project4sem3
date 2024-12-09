@@ -7,4 +7,6 @@ def output(stage, t_name = "", k_name = "", ratings = [], num = 1, mssg = "") ->
         rate_txt = mssg[:]
         return [rating, rate_txt]
     if stage == "TEACHER_BUTTON":
-        return f"Отзыв №{num}/{len(ratings)}\nПреподаватель {t_name[:-1]}:\n\nОценка: {ratings[num-1][3]}\nОтзыв: {ratings[num-1][2]}"
+        return f"Отзыв №{num}/{len(ratings)}\nПреподаватель {t_name}:\n\nОценка: {ratings[num-1][3]}\nОтзыв: {ratings[num-1][2]}"
+    if stage == "RATINGS":
+        return f"Отзыв №{num}/{len(ratings)}\nПреподаватель {ratings[num-1][1]}:\n\nОценка: {ratings[num-1][2]}\nОтзыв: {ratings[num-1][3]}"
