@@ -27,7 +27,7 @@ def keyboard_f(tb, stage: str, num: int = 1, max_num: int = 2):
         keyboard = tb.types.ReplyKeyboardRemove()
 
     elif stage == "TEACHER_LOOK":
-        print('\nk', stage, '\n', max_num, num)
+        print('\nk', stage)
         keyboard = tb.types.InlineKeyboardMarkup()
         count_button = tb.types.InlineKeyboardButton(text=f"{btfl_num(num)}", callback_data="blank")
         goon_button = tb.types.InlineKeyboardButton(text="Далее",
@@ -40,10 +40,6 @@ def keyboard_f(tb, stage: str, num: int = 1, max_num: int = 2):
                 else: keyboard.add(gobck_button, count_button, goon_button)
             else: keyboard.add(count_button, goon_button)
         else: keyboard.add(count_button)
-        """if num == 1: keyboard.add(count_button, goon_button)
-        if max_num == 1: keyboard.add(count_button)
-        elif num == max_num: keyboard.add(gobck_button, count_button)
-        else: keyboard.add(gobck_button, count_button, goon_button)"""
 
     elif stage == "RATINGS":
         keyboard = tb.types.InlineKeyboardMarkup()
@@ -52,9 +48,11 @@ def keyboard_f(tb, stage: str, num: int = 1, max_num: int = 2):
                                                     callback_data='go_on_/rating')
         gobck_button = tb.types.InlineKeyboardButton(text="Назад",
                                                     callback_data='go_back_/rating')
-        if num == 1: keyboard.add(count_button, goon_button)
-        elif len(max_num) == 1: keyboard.add(count_button)
-        elif num == len(max_num): keyboard.add(gobck_button, count_button)
-        else: keyboard.add(gobck_button, count_button, goon_button)
+        if max_num != 1:
+            if num != 1:
+                if max_num == num: keyboard.add(gobck_button, count_button)
+                else: keyboard.add(gobck_button, count_button, goon_button)
+            else: keyboard.add(count_button, goon_button)
+        else: keyboard.add(count_button)
     else: print("keyboard_f else =", bool(keyboard))
     return keyboard
