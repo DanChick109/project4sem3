@@ -10,19 +10,21 @@ conn = psycopg2.connect(database="postgres",
                         user="postgres",
                         password="postgres",)
 cursor = conn.cursor()
-users = set()
 num = 0
 t_name = ""
 
+bot.send_message(chat_id=1346307992, text=f"Бот перезапущен")
+
 @bot.message_handler(commands=["start"])   ### Готов
 def welcome(message) -> None:
-    global users, stage
+    global stage
     stage = "START"   
     print(20*"#", stage, 20*"#") #
-    users.add((message.chat.first_name, message.chat.last_name, message.chat.username,
-                message.chat.id))
+    users = set([message.chat.first_name, message.chat.last_name, message.chat.username, message.chat.id])
     with open("data_users.txt", mode="r+") as f:
-        f.write(f"{users}\n")
+        s = str([i for i in f.readlines()])
+        if not(str(users) in s):
+            f.write(f"{users}\n")
     bot.send_message(message.chat.id,
                            "Добро пожаловать в бота с рейтингом преподавателей. "
                            "Для вывода всех команд используйте команду '/help'.", 
@@ -47,21 +49,17 @@ def list_of_t(message) -> None:
     global stage
     stage = "LIST"   
     print(20*"#", stage, 20*"#") #
-    mmsg_txt, s = message.text[6:], ""
+    mmsg_txt, s = message.text[6:].capitalize(), ""
     kafs = []
-    print(f"mssg = '{mmsg_txt}'") ##################################
     if len(mmsg_txt) < 6:
         for i in range(1, 8+1): 
             cursor.execute(f"SELECT kaf_name FROM kafedra WHERE split_part(kaf_name, ' ', {i}) = '({mmsg_txt})'")
             kafs_i = [j[0] for j in list(cursor.fetchall())]
             if kafs_i: kafs = kafs_i 
-        print("c.fetchall =", list(cursor.fetchall())) ##################################
     else: 
         cursor.execute(f"SELECT kaf_name FROM kafedra WHERE kaf_name = '{mmsg_txt}'")
         kafs = [i[0] for i in list(cursor.fetchall())]
-    print("kafs =", kafs) ##################################
     if kafs:
-        print(kafs[0], type(kafs[0])) ##################################
         cursor.execute("SELECT t_name FROM teachers WHERE kaf_name=%s", (kafs[0],))
         teachs = [i[0] for i in list(cursor.fetchall())]
         for i in teachs:
@@ -148,7 +146,9 @@ def choose(message) -> None:
         elif len(message.text.split()) == 4:   ### Готов
             cursor.execute(f"SELECT * FROM teachers WHERE t_name = '{message.text[9:]}';")
             teacher = list(cursor.fetchall())
-        if (len(message.text.split()) == 1) or (not teacher): 
+        if len(message.text.split()) == 1: 
+            bot.send_message(message.chat.id, text="Имя препода необходимо ввести после '/teacher'")
+        if not teacher and len(message.text.split())>1:
             bot.send_message(message.chat.id, text="Такого препода нет")
 
         if teacher:   
@@ -161,7 +161,7 @@ def choose(message) -> None:
             if len(teacher) == 1:
                 global t_name
                 t_name = teacher[0][1]
-                bot.send_message(message.chat.id, text=output(t_name = teacher[0][1:-2][0], k_name = teacher[0][1:-2][1], stage=stage), reply_markup=keyboard_f(tb, stage))
+                bot.send_message(message.chat.id, text=output(ratings=[teacher[0][1:-2][0], teacher[0][1:-2][1]], stage=stage), reply_markup=keyboard_f(tb, stage))
                 bot.register_next_step_handler(message, handle_butt)
             print("     ", message.text) ##################################
     except psycopg2.ProgrammingError or IndexError as e: 
@@ -172,7 +172,8 @@ def handle_butt(message) -> None:   ### Готов
     global stage
     stage = "TEACHER_BUTTON"   
     print(20*"#", stage, 20*"#") #
-    try:
+    #try:\
+    if 1:
         if message.text == 'Написать отзыв':   ### Готов
             bot.send_message(message.chat.id, text='Введите отзыв как на примере (оценка не должна быть выше 5):\n4.9 Лучший препод')
             bot.register_next_step_handler(message, handle_rate)
@@ -181,14 +182,13 @@ def handle_butt(message) -> None:   ### Готов
             num = 1
             ratings = get_ratings_ofone(tb, cursor, t_name)
             if ratings:
-                print("rating is goog")
+                print(ratings, len(ratings)) ##################################
                 bot.send_message(message.chat.id, 
                                 text=output(num=num, t_name=t_name, ratings=ratings, stage=stage),
-                                reply_markup=keyboard_f(tb, num=num, stage="TEACHER_LOOK"))
-                print("1st mssg send")
+                                reply_markup=keyboard_f(tb, num=num, stage="TEACHER_LOOK", max_num=len(ratings))) ###
             else:
                 bot.send_message(message.chat.id, 
-                                text=f"У преподователя {t_name} еще нет отзывов\nВы можете стать первым!",
+                                text=f"У преподователя {t_name} еще нет отзывов!",
                                 reply_markup=keyboard_f(tb, num=num, stage="TEACHER_CHOOSING"))
                 bot.register_next_step_handler(message, handle_butt)
         elif message.text == 'Посмотреть статистику':   ### Готов
@@ -212,9 +212,10 @@ def handle_butt(message) -> None:   ### Готов
             #bot.register_next_step_handler(message, choose)
         else:
             bot.reply_to(message, 'Вы ввели фигню: ' + message.text)
-    except Exception as e:
+        
+    """except Exception as e:
             print(f"Не удалось отправить сообщение пользователю {message.chat.id}: {e}")
-            bot.reply_to(message, text='oOOopS, tHE bUg hAppENeD', reply_markup=keyboard_f(tb, stage=stage))
+            bot.reply_to(message, text='oOOopS, tHE bUg hAppENeD', reply_markup=keyboard_f(tb, stage=stage))"""
         
 def handle_rate(message) -> None:   ### Готов (?)
     global stage, t_name
@@ -230,9 +231,9 @@ def handle_rate(message) -> None:   ### Готов (?)
     try:
         cursor.execute(f"INSERT INTO ratings(t_name, rate_txt, rate) VALUES('{t_name}', '{rate[1]}', {rate[0]});")
         conn.commit()
-        bot.send_message(message.chat.id, text=f"Ваш отзыв:\n  {rate[1]}\nВаша оценка:\n  {rate[0]}")
-        stage = "TEACHER_CHOOSING4LOOK"
-        bot.register_next_step_handler(message, choose)
+        bot.register_next_step_handler(message, handle_rate)
+        bot.send_message(message.chat.id, text=f"Ваш отзыв:\n  {rate[1]}\nВаша оценка:\n  {rate[0]}", reply_markup=keyboard_f(tb, stage="TEACHER_CHOOSING"))
+        bot.send_message(message.chat.id, text=f"Выбранный препод - {t_name}")
     except TypeError or psycopg2.errors.SyntaxError or psycopg2.errors.UndefinedColumn:
         bot.send_message(message.chat.id, text=f'Введите отзыв как на примере:\n4.9 Лучший препод')
         bot.register_next_step_handler(message, handle_rate)
@@ -242,7 +243,8 @@ def handle_rate(message) -> None:   ### Готов (?)
 def goon_btn(call):
     global num, t_name, stage
     num += 1
-    print(stage)
+    print(num, t_name, get_ratings_ofone(tb, cursor, t_name), "TEACHER_BUTTON")
+    print(output(num=num, t_name=t_name, ratings=get_ratings_ofone(tb, cursor, t_name), stage="TEACHER_BUTTON"))
     bot.edit_message_text(chat_id=call.message.chat.id, 
                           message_id=call.message.message_id, 
                           text=output(num=num, t_name=t_name, ratings=get_ratings_ofone(tb, cursor, t_name), stage="TEACHER_BUTTON"),
@@ -262,7 +264,6 @@ def gobck_btn(call):
 def goon_btn(call):
     global num, stage
     num += 1
-    print(stage)
     rating = get_ratings_ofall(tb, cursor)
     bot.edit_message_text(chat_id=call.message.chat.id, 
                           message_id=call.message.message_id, 
@@ -273,7 +274,6 @@ def goon_btn(call):
 def gobck_btn(call):
     global num, stage
     num -= 1
-    print(stage)
     rating = get_ratings_ofall(tb, cursor)
     bot.edit_message_text(chat_id=call.message.chat.id, 
                           message_id=call.message.message_id, 
