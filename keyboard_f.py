@@ -21,7 +21,7 @@ def keyboard_f(tb, stage: str, num: int = 1, max_num: int = 2):
         bttn1 = tb.types.KeyboardButton('Написать отзыв')
         bttn2 = tb.types.KeyboardButton('Посмотреть отзывы')
         bttn3 = tb.types.KeyboardButton('Посмотреть статистику')
-        bttn4 = tb.types.KeyboardButton('Убрать клавиатуру')
+        bttn4 = tb.types.KeyboardButton('Отменить выбор')
         keyboard.add(bttn1, bttn2, bttn3, bttn4)
     elif stage == "TEACHER_BUTTON":
         keyboard = tb.types.ReplyKeyboardRemove()
